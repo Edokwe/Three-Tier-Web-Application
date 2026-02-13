@@ -1,0 +1,58 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-terraform:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: ./
+
+      - name: Terraform Init & Validate
+        run: |
+          terraform init -backend=false
+          terraform validate
+        working-directory: environments/dev
+
+  lint-application:
+    name: Application Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install Linting Tools
+        run: pip install pylint flake8
+
+      - name: Run Pylint
+        if: hashFiles('application/**/*.py') != ''
+        run: |
+          find application/ -name "*.py" | xargs pylint --disable=C,R,W || true 
+          # Allowing failures for demonstration, enforce in production

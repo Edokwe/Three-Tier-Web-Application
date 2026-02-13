@@ -1,156 +1,103 @@
-# AWS High-Availability Three-Tier Web Application
+# High-Availability Web Application on AWS
 
-![AWS](https://img.shields.io/badge/AWS-Architecture-orange?style=for-the-badge&logo=amazon-aws)
-![Terraform](https://img.shields.io/badge/Infrastructure-Terraform-purple?style=for-the-badge&logo=terraform)
-![Status](https://img.shields.io/badge/Status-Production%20Ready-green?style=for-the-badge)
+A complete, production-ready implementation of a three-tier web application architecture on AWS, using Terraform for Infrastructure as Code (IaC) and GitHub Actions for CI/CD.
 
-## 📋 Project Overview
+![Architecture Diagram](docs/architecture/diagrams/overview.png) _(Placeholder for your diagram)_
 
-This project demonstrates a **production-grade, high-availability web infrastructure** on AWS, built using **Infrastructure as Code (IaC)** principles. designed to host a scalable web application (Python Flask/Node.js). It showcases advanced cloud architectural patterns including multi-AZ resilience, auto-scaling, defense-in-depth security, and performance caching.
+## Features
 
-**Goal:** To build a robust, fault-tolerant platform capable of handling variable traffic loads while maintaining strict security and keeping costs predictable.
+- **Multi-Account Strategy**: Management, Dev, Staging, and Production environments isolated via AWS Organizations.
+- **Three-Tier Architecture**:
+  - **Frontend**: React SPA served by Nginx on EC2 Auto Scaling Group.
+  - **Backend**: Python Flask REST API on the same EC2 instances (or separate ASG).
+  - **Data**: Amazon RDS (PostgreSQL) and ElastiCache (Redis).
+- **High Availability**: Multi-AZ deployment (ALB + ASG), RDS Multi-AZ for production.
+- **Security**:
+  - WAF (Web Application Firewall) for application protection.
+  - VPC Network Segmentation (Public/Private/Data subnets).
+  - Least Privilege IAM Roles.
+  - Encrypted Data at Rest (KMS) and In Transit (TLS).
+- **DevOps**:
+  - **IaC**: Terraform with remote state (S3 + DynamoDB).
+  - **CI/CD**: GitHub Actions pipelines for infrastructure and application deployment.
+  - **Monitoring**: CloudWatch Dashboards, Alarms, and Logs.
 
-## 🏗 Architecture
+## Tech Stack
 
-The infrastructure follows a classic **Three-Tier Architecture** (Presentation, Logic, Data) spread across **two Availability Zones (AZs)** for high availability.
+- **Cloud Provider**: AWS (EC2, VPC, RDS, ElastiCache, ALB, S3, CloudWatch, WAF, Route53)
+- **Infrastructure as Code**: Terraform
+- **CI/CD**: GitHub Actions
+- **Application**: React (Frontend), Python Flask (Backend), PostgreSQL, Redis
 
-```mermaid
-graph TD
-    %% Users and Entry
-    User[User] -->|HTTPS| CF[CloudFront CDN]
-    CF -->|WAF Protected| ALB[Application Load Balancer]
-
-    subgraph VPC [VPC 10.0.0.0/16]
-        direction TB
-
-        subgraph AZ1 [Availability Zone 1]
-            NAT1[NAT Gateway]
-
-            subgraph AppTier1 [Private App Subnet]
-                Web1[EC2 Instance]
-            end
-
-            subgraph DataTier1 [Private Data Subnet]
-                RDS_Primary[(RDS Primary)]
-                Redis_Primary[(ElastiCache)]
-            end
-        end
-
-        subgraph AZ2 [Availability Zone 2]
-            %% Redundant components
-
-            subgraph AppTier2 [Private App Subnet]
-                Web2[EC2 Instance]
-            end
-
-            subgraph DataTier2 [Private Data Subnet]
-                RDS_Standby[(RDS Standby)]
-                Redis_Replica[(ElastiCache Replica)]
-            end
-        end
-    end
-
-    %% Flow
-    ALB -->|Traffic Dist| Web1 & Web2
-    Web1 & Web2 -->|Write| RDS_Primary
-    Web1 & Web2 -->|Read/Cache| Redis_Primary
-    RDS_Primary -.->|Sync Rep| RDS_Standby
-    Web1 & Web2 -->|Outbound| NAT1
-```
-
-### Key Components
-
-| Component      | Service               | Role                                                                                   |
-| -------------- | --------------------- | -------------------------------------------------------------------------------------- |
-| **Compute**    | EC2 + Auto Scaling    | Handles application logic; scales from 2-4 instances based on CPU load.                |
-| **Networking** | VPC, NAT Gateway      | Provides network isolation; Private subnets for logic/data, Public for load balancing. |
-| **Database**   | RDS PostgreSQL        | Multi-AZ relational database with automated failover.                                  |
-| **Caching**    | ElastiCache Redis     | In-memory caching for session management and database query offloading.                |
-| **Delivery**   | CloudFront + ALB      | Global content delivery network and intelligent layer 7 load balancing.                |
-| **Security**   | WAF + Security Groups | Web Application Firewall for exploit protection; granular firewall rules.              |
-| **Monitoring** | CloudWatch            | Centralized logging, metrics, and alarm-based scaling policies.                        |
-
-## 🛠️ Technology Stack
-
-- **Infrastructure as Code**: Terraform (Modular design)
-- **Cloud Provider**: AWS (us-east-1)
-- **CI/CD**: GitHub Actions (planned)
-- **Application**: Python Flask / Node.js
-- **Scripting**: Bash (User Data configuration)
-
-## 📂 Repository Structure
-
-```
-├── documentation/          # Detailed Architecture Decisions & Diagrams
-│   ├── architecture.md
-│   ├── network-design.md
-│   ├── security.md
-│   └── monitoring.md
-├── terraform/              # Infrastructure Code
-│   ├── environments/       # State separation (Dev, Staging, Prod)
-│   │   └── dev/
-│   └── modules/            # Reusable Terraform Modules
-│       └── vpc/
-└── README.md
-```
-
-## 🚀 Key Features Demonstrated
-
-1.  **High Availability (HA)**: The system can survive the total loss of a data center (Availability Zone) with no manual intervention, thanks to Multi-AZ RDS and Auto Scaling.
-2.  **Scalability**: The application tier automatically scales out during traffic spikes and scales in during quiet periods to save costs.
-3.  **Security in Depth**:
-    - **Network Isolation**: No application or database server has a public IP.
-    - **Encryption**: Data encrypted at rest (KMS) and in transit (TLS).
-    - **Least Privilege**: IAM roles restrict permissions for EC2 instances.
-4.  **Performance Optimization**:
-    - **CloudFront**: Caches static assets at the edge.
-    - **Redis**: Microsecond latency for session data retrieval.
-5.  **Cost Efficiency**: Use of burstable instances (t3 series) and strategic NAT placement for non-prod environments.
-
-## 💻 Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- AWS CLI configured with appropriate permissions.
-- Terraform installed (v1.0+).
+- AWS Account with Admin Access
+- Terraform v1.6+
+- AWS CLI v2
+- Git
 
-### Deployment Steps
+### Deployment
 
 1.  **Clone the Repository**
 
     ```bash
-    git clone https://github.com/yourusername/high-availability-webapp.git
-    cd high-availability-webapp
+    git clone https://github.com/your-username/high-availability-web-application.git
+    cd high-availability-web-application
     ```
 
-2.  **Initialize Terraform**
-    Navigate to the environment directory:
+2.  **Bootstrap Infrastructure (S3 Backend)**
 
+    ````bash
     ```bash
-    cd terraform/environments/dev
-    terraform init
-    ```
+    cd environments/bootstrap
+    terraform init && terraform apply
+    ````
 
-3.  **Plan & Apply**
+3.  **Deploy Development Environment**
 
+    ````bash
     ```bash
-    terraform plan -out=tfplan
-    terraform apply tfplan
+    cd ../dev
+    terraform init && terraform apply
+    ````
+
+4.  **Deploy Application**
+    ```bash
+    # Get bucket name
+    BUCKET=$(terraform output -raw s3_static_assets_bucket)
+    # Run deploy script
+    ../../scripts/deploy-app.sh $BUCKET
     ```
+5.  **Access the App**
+    Get the Load Balancer DNS:
+    ```bash
+    terraform output alb_dns_name
+    ```
+    Open in browser: `http://<ALB_DNS_NAME>`
 
-4.  **Verify**
-    Terraform will output the Load Balancer DNS name. Access it via your browser to see the running application.
+## Documentation
 
-## 💰 Resource Estimation
+- **[Architecture Decisions (ADRs)](docs/architecture/ADR.md)**
+- **[Infrastructure Inventory](docs/architecture/infrastructure-inventory.md)**
+- **[Operational Runbooks](docs/operations/runbooks/deploy-changes.md)**
+- **[Disaster Recovery](docs/operations/runbooks/dr-runbooks.md)**
+- **[Application Deployment](docs/operations/runbooks/app-deployment.md)**
+- **[Project Summary](docs/project-summary.md)**
 
-- **Production Tier**: ~$150-200/month (Multi-AZ RDS, 2 NAT Gateways, ALB).
-- **Demo/Dev Tier**: ~$50/month (Single-AZ RDS, 1 NAT Gateway, Spot Instances).
-- _Note: This repository defaults to the Cost-Optimized Dev configuration._
+## Architecture Overview
 
-## 📜 License
+The solution leverages a **Hub-and-Spoke** network topology (simulated via VPC Peering for simplicity) or isolated VPCs per environment.
 
-Distributed under the MIT License. See `LICENSE` for more information.
+- **Public Subnets**: NAT Gateways, Load Balancers.
+- **Private App Subnets**: Web/App Servers (EC2 ASG).
+- **Private Data Subnets**: RDS Database, ElastiCache Redis.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-_Architected and Built for AWS Cloud Proficiency Portfolio._
+_Created by [Your Name] for Cloud Engineering Portfolio._
