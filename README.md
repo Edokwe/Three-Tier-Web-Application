@@ -25,13 +25,13 @@ graph TD
         end
 
         subgraph "Private App Subnets"
-            asg[Auto Scaling Group<br/>(EC2 Instances)]
+            asg["Auto Scaling Group<br/>(EC2 Instances)"]
             asg -->|Outbound| nat
         end
 
         subgraph "Private Data Subnets"
-            rds[(RDS PostgreSQL<br/>Multi-AZ)]
-            redis[(ElastiCache Redis)]
+            rds[("RDS PostgreSQL<br/>Multi-AZ")]
+            redis[("ElastiCache Redis")]
         end
     end
 
