@@ -1,103 +1,167 @@
-# High-Availability Web Application on AWS
+# High-Availability Three-Tier Web Application on AWS
 
-A complete, production-ready implementation of a three-tier web application architecture on AWS, using Terraform for Infrastructure as Code (IaC) and GitHub Actions for CI/CD.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Terraform](https://img.shields.io/badge/terraform-v1.6+-purple.svg)
+![AWS](https://img.shields.io/badge/AWS-Production%20Ready-orange.svg)
+![CI/CD](https://img.shields.io/badge/GitHub%20Actions-Enabled-green.svg)
 
-![Architecture Diagram](docs/architecture/diagrams/overview.png) _(Placeholder for your diagram)_
+A production-grade, highly available, and secure three-tier web application architecture deployed on AWS. This project demonstrates advanced Cloud Engineering practices including **Infrastructure as Code (IaC)**, **CI/CD pipelines**, **Network Segmentation**, and **Automated Disaster Recovery**.
 
-## Features
+---
 
-- **Multi-Account Strategy**: Management, Dev, Staging, and Production environments isolated via AWS Organizations.
-- **Three-Tier Architecture**:
-  - **Frontend**: React SPA served by Nginx on EC2 Auto Scaling Group.
-  - **Backend**: Python Flask REST API on the same EC2 instances (or separate ASG).
-  - **Data**: Amazon RDS (PostgreSQL) and ElastiCache (Redis).
-- **High Availability**: Multi-AZ deployment (ALB + ASG), RDS Multi-AZ for production.
-- **Security**:
-  - WAF (Web Application Firewall) for application protection.
-  - VPC Network Segmentation (Public/Private/Data subnets).
-  - Least Privilege IAM Roles.
-  - Encrypted Data at Rest (KMS) and In Transit (TLS).
-- **DevOps**:
-  - **IaC**: Terraform with remote state (S3 + DynamoDB).
-  - **CI/CD**: GitHub Actions pipelines for infrastructure and application deployment.
-  - **Monitoring**: CloudWatch Dashboards, Alarms, and Logs.
+## Architecture Overview
 
-## Tech Stack
+The infrastructure is built using a Hub-and-Spoke model (simulated) with strict network isolation.
 
-- **Cloud Provider**: AWS (EC2, VPC, RDS, ElastiCache, ALB, S3, CloudWatch, WAF, Route53)
-- **Infrastructure as Code**: Terraform
-- **CI/CD**: GitHub Actions
-- **Application**: React (Frontend), Python Flask (Backend), PostgreSQL, Redis
+```mermaid
+graph TD
+    user((User)) -->|HTTPS/443| waf[AWS WAF]
+    waf --> alb[Application Load Balancer]
 
-## Quick Start
+    subgraph "VPC (US-East-1)"
+        subgraph "Public Subnets"
+            alb
+            nat[NAT Gateway]
+        end
+
+        subgraph "Private App Subnets"
+            asg[Auto Scaling Group<br/>(EC2 Instances)]
+            asg -->|Outbound| nat
+        end
+
+        subgraph "Private Data Subnets"
+            rds[(RDS PostgreSQL<br/>Multi-AZ)]
+            redis[(ElastiCache Redis)]
+        end
+    end
+
+    alb -->|HTTP/80| asg
+    asg -->|Read/Write| rds
+    asg -->|Cache| redis
+
+    subgraph "Management & Operations"
+        s3[S3 Artifacts]
+        cw[CloudWatch Monitoring]
+        backup[AWS Backup]
+    end
+
+    asg -.->|Pull Code| s3
+    asg -.->|Logs/Metrics| cw
+    backup -.->|Snapshots| rds
+```
+
+## Key Features
+
+- **High Availability & Fault Tolerance**:
+  - Multi-AZ deployment for all tiers (Web, App, Data).
+  - Auto Scaling Group (ASG) capable of handling traffic spikes and self-healing.
+  - RDS Multi-AZ for seamless database failover.
+
+- **Security First Design**:
+  - **Network Isolation**: Strict separation of public (DMZ) and private subnets.
+  - **WAF Protection**: AWS WAF rules to block common web exploits (SQLi, XSS).
+  - **Least Privilege**: Granular IAM roles for EC2, Lambda, and CI/CD runners.
+  - **Encryption**: Data encrypted at rest (KMS) and in transit (TLS 1.2+).
+
+- **DevOps & Automation**:
+  - **Infrastructure as Code**: 100% Terraform managed with modular design.
+  - **CI/CD Pipelines**: GitHub Actions for automated Terraform validation (`tfsec`, `tflint`) and application deployment.
+  - **Zero-Downtime Deployment**: Rolling updates via Instance Refresh.
+
+- **Observability**:
+  - Centralized CloudWatch Dashboards for ALB, EC2, and RDS metrics.
+  - SNS Alerts for critical thresholds (CPU > 80%, 5xx Errors).
+
+## 🛠️ Technology Stack
+
+| Layer              | Technology                                          |
+| ------------------ | --------------------------------------------------- |
+| **Cloud Provider** | AWS (VPC, EC2, RDS, ElastiCache, ALB, S3, IAM, WAF) |
+| **IaC**            | Terraform (Modular, Remote State S3+DynamoDB)       |
+| **CI/CD**          | GitHub Actions (OIDC Authentication)                |
+| **Frontend**       | React (Vite, Single Page Application)               |
+| **Backend**        | Python Flask (REST API, Gunicorn)                   |
+| **Database**       | PostgreSQL 15 (AWS RDS)                             |
+| **Caching**        | Redis 7 (AWS ElastiCache)                           |
+| **Server**         | Nginx (Reverse Proxy)                               |
+
+## 📂 Project Structure
+
+```bash
+├── .github/workflows/    # CI/CD Pipelines (Terraform Plan/Apply, Security Scan)
+├── application/          # Source code
+│   ├── frontend/         # React SPA
+│   └── backend/          # Flask API
+├── docs/                 # Detailed Documentation & Runbooks
+├── environments/         # Environment Configs (Dev, Staging, Prod)
+├── modules/              # Reusable Terraform Modules (VPC, ASG, RDS, etc.)
+└── scripts/              # Automation Scripts (Deploy, Rollback, Cost Report)
+```
+
+## Quick Start Guide
 
 ### Prerequisites
 
-- AWS Account with Admin Access
+- AWS Account (Admin Access)
 - Terraform v1.6+
 - AWS CLI v2
 - Git
 
-### Deployment
+### 1. Bootstrap Infrastructure
 
-1.  **Clone the Repository**
+Initialize remote state storage (S3 + DynamoDB).
 
-    ```bash
-    git clone https://github.com/your-username/high-availability-web-application.git
-    cd high-availability-web-application
-    ```
+```bash
+cd environments/bootstrap
+terraform init && terraform apply
+```
 
-2.  **Bootstrap Infrastructure (S3 Backend)**
+### 2. Deploy Development Environment
 
-    ````bash
-    ```bash
-    cd environments/bootstrap
-    terraform init && terraform apply
-    ````
+Provision the VPC, Databases, and Compute resources.
 
-3.  **Deploy Development Environment**
+```bash
+cd ../dev
+terraform init && terraform apply
+```
 
-    ````bash
-    ```bash
-    cd ../dev
-    terraform init && terraform apply
-    ````
+### 3. Deploy Application
 
-4.  **Deploy Application**
-    ```bash
-    # Get bucket name
-    BUCKET=$(terraform output -raw s3_static_assets_bucket)
-    # Run deploy script
-    ../../scripts/deploy-app.sh $BUCKET
-    ```
-5.  **Access the App**
-    Get the Load Balancer DNS:
-    ```bash
-    terraform output alb_dns_name
-    ```
-    Open in browser: `http://<ALB_DNS_NAME>`
+Build React app, package with Flask, upload to S3, and trigger rolling update.
 
-## Documentation
+```bash
+# Get the S3 bucket name created by Terraform
+BUCKET=$(cd environments/dev && terraform output -raw s3_static_assets_bucket)
 
-- **[Architecture Decisions (ADRs)](docs/architecture/ADR.md)**
-- **[Infrastructure Inventory](docs/architecture/infrastructure-inventory.md)**
-- **[Operational Runbooks](docs/operations/runbooks/deploy-changes.md)**
-- **[Disaster Recovery](docs/operations/runbooks/dr-runbooks.md)**
-- **[Application Deployment](docs/operations/runbooks/app-deployment.md)**
-- **[Project Summary](docs/project-summary.md)**
+# Run the deployment script
+./scripts/deploy.sh application dev
+```
 
-## Architecture Overview
+### 4. Access the Application
 
-The solution leverages a **Hub-and-Spoke** network topology (simulated via VPC Peering for simplicity) or isolated VPCs per environment.
+Get the Load Balancer DNS name:
 
-- **Public Subnets**: NAT Gateways, Load Balancers.
-- **Private App Subnets**: Web/App Servers (EC2 ASG).
-- **Private Data Subnets**: RDS Database, ElastiCache Redis.
+```bash
+cd environments/dev && terraform output alb_dns_name
+```
 
-## License
+Open the URL in your browser to see the live application.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 📚 Documentation
+
+Detailed documentation for review and operations:
+
+- **[Architecture Decisions (ADR)](docs/architecture/ADR.md)**: Why we chose strict network isolation and Terraform.
+- **[Infrastructure Inventory](docs/architecture/infrastructure-inventory.md)**: Breakdown of resources and estimated costs.
+- **[Disaster Recovery Runbooks](docs/operations/runbooks/dr-runbooks.md)**: Procedures for restoring RDS and EC2.
+- **[Deployment Guide](docs/operations/runbooks/app-deployment.md)**: Step-by-step application deployment workflow.
+- **[Well-Architected Review](docs/well-architected/review.md)**: Self-assessment against AWS best practices.
+
+## 👨‍💻 Author
+
+**Edokwe**
+_Cloud Engineer | DevOps Enthusiast_
 
 ---
 
-_Created by [Your Name] for Cloud Engineering Portfolio._
+_Built for the [Cloud Engineering Portfolio](https://github.com/Edokwe)._
